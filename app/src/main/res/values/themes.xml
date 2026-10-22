@@ -34,7 +34,7 @@
         <item name="rippleColor">@color/accent_tint</item>
     </style>
 
-    <style name="Suzgec.SectionTitle">
+    <style name="Suzgec.SectionTitle" parent="">
         <item name="android:textSize">13sp</item>
         <item name="android:textColor">@color/text_dim</item>
         <item name="android:textAllCaps">true</item>
