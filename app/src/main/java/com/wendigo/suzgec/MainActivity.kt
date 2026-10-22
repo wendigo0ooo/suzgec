@@ -791,17 +791,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun copyDiagnostics() {
+        val ctx = this
         val text = buildString {
-            val snapshot = VpnStatus.snapshot(this)
+            val snapshot = VpnStatus.snapshot(ctx)
             appendLine("Süzgeç ${packageVersion()}")
             appendLine("mod: ${store.mode}")
-            appendLine("durum: ${if (Protection.active(this)) "çalışıyor" else "durdu"}")
+            appendLine("durum: ${if (Protection.active(ctx)) "çalışıyor" else "durdu"}")
             appendLine("vpn servisi: ${SuzgecVpnService.active} · yerel dns: ${FilterService.running}")
             appendLine("vpn algılandı: ${snapshot.vpnActive} · dns: ${snapshot.dnsText()}")
             appendLine("port: ${if (FilterService.running) FilterService.boundPort else store.port}")
-            appendLine("kural: ${Protection.ruleCount(this)} · kaynak: ${Protection.sourceCount(this)}")
-            appendLine("yükleniyor: ${Protection.loading(this)}")
-            appendLine("son hata: ${Protection.lastError(this) ?: "-"}")
+            appendLine("kural: ${Protection.ruleCount(ctx)} · kaynak: ${Protection.sourceCount(ctx)}")
+            appendLine("yükleniyor: ${Protection.loading(ctx)}")
+            appendLine("son hata: ${Protection.lastError(ctx) ?: "-"}")
             appendLine("upstream: ${store.upstreamKey}${if (store.upstreamKey == "custom") " ${store.customDoh}" else ""}")
             appendLine("liste sayısı: ${store.userLists.size}")
             appendLine("bugün: ${Stats.todayQueryCount()} sorgu · ${Stats.todayBlockedCount()} engellendi")
