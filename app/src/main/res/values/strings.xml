@@ -64,8 +64,8 @@
     <string name="rb_custom">Özel DoH</string>
     <string name="hint_custom_doh">https://ornek.com/dns-query</string>
     <string name="settings_block_mode">Engelleme yanıtı</string>
-    <string name="rb_nxdomain">NXDOMAIN (önerilen)</string>
-    <string name="rb_zero">0.0.0.0</string>
+    <string name="rb_nxdomain">NXDOMAIN (bazı uygulamalar ağ hatası sanır)</string>
+    <string name="rb_zero">0.0.0.0 (önerilen)</string>
     <string name="settings_lists">Filtre listeleri</string>
     <string name="sw_bundled">Yerleşik liste (reklam ve izleyici)</string>
     <string name="hint_list_url">https://… liste adresi</string>
@@ -93,4 +93,15 @@
     <string name="saved">Kaydedildi</string>
     <string name="reloading">Listeler yeniden yükleniyor…</string>
     <string name="remove_list_title">Listeyi kaldır</string>
+
+    <string name="settings_recommended">Önerilen listeler</string>
+    <string name="settings_recommended_hint">Dokununca liste indirilir ve hemen uygulanır. Daha güçlü engelleme için en az AdGuard DNS listesini ekle.</string>
+    <string name="btn_diagnostics">Tanı bilgisini kopyala</string>
+    <string name="diagnostics_hint">Son çökme ve servis hatalarını panoya kopyalar; destek için gönderebilirsin.</string>
+    <string name="copy_label_diagnostics">Süzgeç tanı bilgisi</string>
+    <string name="refresh_done">Listeler güncellendi: %1$d başarılı, %2$d hatalı</string>
+    <string name="notif_permission_needed">Bildirim izni verilmedi; filtre arka planda bildirimsiz çalışamaz.</string>
+    <string name="status_detail_loading">Filtre listeleri yükleniyor…</string>
+    <string name="notif_title_loading">Süzgeç hazırlanıyor</string>
+    <string name="notif_text_loading">Filtre listeleri yükleniyor…</string>
 </resources>

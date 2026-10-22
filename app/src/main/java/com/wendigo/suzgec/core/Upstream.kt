@@ -30,7 +30,9 @@ class DohUpstream(private val url: String) : Upstream {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
                 val bytes = response.body?.bytes() ?: return null
-                if (bytes.size < DnsWire.HEADER_SIZE) null else bytes
+                if (bytes.size < DnsWire.HEADER_SIZE) null
+                else if (DnsWire.transactionId(bytes) != DnsWire.transactionId(packet)) null
+                else bytes
             }
         } catch (_: Exception) {
             null
@@ -42,9 +44,10 @@ class DohUpstream(private val url: String) : Upstream {
 
         private val client: OkHttpClient by lazy {
             OkHttpClient.Builder()
-                .connectTimeout(4, TimeUnit.SECONDS)
-                .readTimeout(8, TimeUnit.SECONDS)
-                .writeTimeout(8, TimeUnit.SECONDS)
+                .connectTimeout(3, TimeUnit.SECONDS)
+                .readTimeout(4, TimeUnit.SECONDS)
+                .writeTimeout(4, TimeUnit.SECONDS)
+                .callTimeout(6, TimeUnit.SECONDS)
                 .retryOnConnectionFailure(true)
                 .build()
         }
@@ -66,7 +69,8 @@ class UdpUpstream(private val server: String, private val timeoutMs: Int = 4000)
             val buf = ByteArray(4096)
             val answer = DatagramPacket(buf, buf.size)
             s.receive(answer)
-            buf.copyOf(answer.length)
+            val bytes = buf.copyOf(answer.length)
+            if (DnsWire.transactionId(bytes) != DnsWire.transactionId(packet)) null else bytes
         } catch (_: Exception) {
             null
         } finally {
@@ -107,6 +111,7 @@ object Upstreams {
     const val KEY_CUSTOM = "custom"
 
     private const val CLOUDFLARE_IP_URL = "https://1.1.1.1/dns-query"
+    private const val CLOUDFLARE_IP_FALLBACK = "https://1.0.0.1/dns-query"
     private const val ADGUARD_URL = "https://dns.adguard-dns.com/dns-query"
     private const val QUAD9_URL = "https://dns.quad9.net/dns-query"
     private const val CLOUDFLARE_URL = "https://cloudflare-dns.com/dns-query"
@@ -140,7 +145,7 @@ object Upstreams {
             KEY_CUSTOM -> custom.trim()
             else -> CLOUDFLARE_IP_URL
         }
-        val fallback = UdpUpstream("1.1.1.1")
+        val fallback = DohUpstream(CLOUDFLARE_IP_FALLBACK)
         return if (url.startsWith("https://")) {
             CompositeUpstream(DohUpstream(url), fallback)
         } else {

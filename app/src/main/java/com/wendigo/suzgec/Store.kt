@@ -21,7 +21,7 @@ class Store(context: Context) {
         set(value) = prefs.edit().putString(KEY_CUSTOM_DOH, value).apply()
 
     var blockMode: String
-        get() = prefs.getString(KEY_BLOCK_MODE, MODE_NXDOMAIN) ?: MODE_NXDOMAIN
+        get() = prefs.getString(KEY_BLOCK_MODE, MODE_ZERO) ?: MODE_ZERO
         set(value) = prefs.edit().putString(KEY_BLOCK_MODE, value).apply()
 
     var serviceWanted: Boolean

@@ -18,11 +18,17 @@ import androidx.core.content.ContextCompat
 import com.wendigo.suzgec.core.DnsServer
 import com.wendigo.suzgec.core.FilterRules
 import com.wendigo.suzgec.core.Upstreams
+import java.util.concurrent.Executors
 
 class FilterService : Service() {
 
     private var server: DnsServer? = null
     private var started = false
+    private var generation = 0
+
+    private val worker = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "suzgec-load").apply { isDaemon = true }
+    }
 
     @Volatile
     private var rules: FilterRules = FilterRules.EMPTY
@@ -52,11 +58,11 @@ class FilterService : Service() {
             return START_NOT_STICKY
         }
 
-        ensureForeground()
+        if (!ensureForeground()) return START_NOT_STICKY
 
         when (action) {
-            ACTION_RELOAD -> startServer()
-            else -> if (server == null) startServer()
+            ACTION_RELOAD -> reloadServer()
+            else -> if (server == null && !loading) reloadServer()
         }
 
         handler.removeCallbacks(tick)
@@ -64,65 +70,101 @@ class FilterService : Service() {
         return START_STICKY
     }
 
-    private fun ensureForeground() {
+    private fun ensureForeground(): Boolean {
         createChannel()
         val type = if (Build.VERSION.SDK_INT >= 34) {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
         } else {
             0
         }
-        try {
+        return try {
             ServiceCompat.startForeground(this, NOTIF_ID, buildNotification(), type)
             started = true
-        } catch (_: Exception) {
+            true
+        } catch (e: Exception) {
+            started = false
+            lastError = "Bildirim başlatılamadı: ${e.message}"
+            CrashLog.append(this, "FGS", e.toString())
+            try {
+                stopSelf()
+            } catch (_: Exception) {
+            }
+            false
         }
     }
 
-    private fun startServer() {
-        server?.stop()
-        server = null
-        running = false
-        boundPort = 0
+    private fun reloadServer() {
+        val myGeneration = ++generation
+        loading = true
         lastError = null
+        updateNotification()
 
-        val store = Store(this)
-        val loaded = try {
-            FilterStore(this).load(store.useBundled, store.userLists)
-        } catch (e: Exception) {
-            lastError = "Liste yüklenemedi: ${e.message}"
-            updateNotification()
-            return
-        }
-        rules = loaded.rules
-        ruleCount = loaded.kept
-        sourceCount = loaded.sources
+        worker.execute {
+            val store = Store(this)
+            val loaded = try {
+                FilterStore(this).load(store.useBundled, store.userLists)
+            } catch (e: Exception) {
+                if (myGeneration == generation) {
+                    lastError = "Liste yüklenemedi: ${e.message}"
+                    CrashLog.append(this, "LISTE", e.toString())
+                    loading = false
+                    handler.post { updateNotification() }
+                }
+                return@execute
+            }
+            if (myGeneration != generation) return@execute
 
-        val upstream = Upstreams.create(store.upstreamKey, store.customDoh)
-        val s = DnsServer(
-            port = store.port,
-            zeroAddressMode = store.blockMode == Store.MODE_ZERO,
-            upstream = upstream,
-            rulesProvider = { rules },
-            onResult = { host, blocked -> Stats.onQuery(host, blocked) },
-            onError = { message -> lastError = message }
-        )
-        try {
-            s.start()
-            server = s
-            running = true
-            boundPort = s.boundPort
-        } catch (e: Exception) {
+            val old = server
+            server = null
             running = false
-            lastError = "Port ${store.port} açılamadı. Başka bir uygulama kullanıyor olabilir."
+            boundPort = 0
             try {
-                s.stop()
+                old?.stop()
             } catch (_: Exception) {
             }
+
+            val upstream = Upstreams.create(store.upstreamKey, store.customDoh)
+            val s = DnsServer(
+                port = store.port,
+                zeroAddressMode = store.blockMode == Store.MODE_ZERO,
+                upstream = upstream,
+                rulesProvider = { rules },
+                onResult = { host, blocked -> Stats.onQuery(host, blocked) },
+                onError = { message -> lastError = message }
+            )
+            try {
+                s.start()
+                if (myGeneration != generation) {
+                    try {
+                        s.stop()
+                    } catch (_: Exception) {
+                    }
+                    return@execute
+                }
+                rules = loaded.rules
+                ruleCount = loaded.kept
+                sourceCount = loaded.sources
+                server = s
+                running = true
+                boundPort = s.boundPort
+                lastError = null
+            } catch (e: Exception) {
+                running = false
+                lastError = "Port ${store.port} açılamadı. Başka bir uygulama kullanıyor olabilir."
+                CrashLog.append(this, "PORT", e.toString())
+                try {
+                    s.stop()
+                } catch (_: Exception) {
+                }
+            }
+            loading = false
+            handler.post { updateNotification() }
         }
-        updateNotification()
     }
 
     private fun shutdown() {
+        generation++
+        loading = false
         handler.removeCallbacks(tick)
         server?.stop()
         server = null
@@ -138,12 +180,18 @@ class FilterService : Service() {
     }
 
     override fun onDestroy() {
+        generation++
+        loading = false
         handler.removeCallbacks(tick)
         server?.stop()
         server = null
         running = false
         boundPort = 0
         Stats.flush()
+        try {
+            worker.shutdownNow()
+        } catch (_: Exception) {
+        }
         super.onDestroy()
     }
 
@@ -177,12 +225,13 @@ class FilterService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val title = if (running) {
-            getString(R.string.notif_title_running)
-        } else {
-            getString(R.string.notif_title_error)
+        val title = when {
+            loading -> getString(R.string.notif_title_loading)
+            running -> getString(R.string.notif_title_running)
+            else -> getString(R.string.notif_title_error)
         }
         val text = when {
+            loading -> getString(R.string.notif_text_loading)
             running -> getString(
                 R.string.notif_text_running,
                 boundPort,
@@ -245,10 +294,19 @@ class FilterService : Service() {
         var sourceCount: Int = 0
             private set
 
+        @Volatile
+        var loading: Boolean = false
+            private set
+
         fun start(context: Context) {
             Store(context).serviceWanted = true
             val intent = Intent(context, FilterService::class.java).setAction(ACTION_START)
-            ContextCompat.startForegroundService(context, intent)
+            try {
+                ContextCompat.startForegroundService(context, intent)
+            } catch (e: Exception) {
+                lastError = "Servis başlatılamadı: ${e.message}"
+                CrashLog.append(context, "START", e.toString())
+            }
         }
 
         fun stop(context: Context) {
@@ -264,7 +322,9 @@ class FilterService : Service() {
             val intent = Intent(context, FilterService::class.java).setAction(ACTION_RELOAD)
             try {
                 ContextCompat.startForegroundService(context, intent)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                lastError = "Listeler yenilenemedi: ${e.message}"
+                CrashLog.append(context, "RELOAD", e.toString())
             }
         }
     }

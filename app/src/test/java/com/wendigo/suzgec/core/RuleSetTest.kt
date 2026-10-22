@@ -42,7 +42,7 @@ class RuleSetTest {
     }
 
     @Test
-    fun skipsUnknownModifiers() {
+    fun keepsDomainRulesWithResourceModifiers() {
         val result = RuleParser.parse(
             sequenceOf(
                 "||script-ad.com^\$script",
@@ -50,10 +50,43 @@ class RuleSetTest {
                 "||plain-ad.com^"
             )
         )
-        assertEquals(1, result.kept)
-        assertEquals(2, result.skipped)
+        assertEquals(3, result.kept)
+        assertEquals(0, result.skipped)
         assertTrue(result.rules.isBlocked("plain-ad.com"))
-        assertFalse(result.rules.isBlocked("script-ad.com"))
+        assertTrue(result.rules.isBlocked("script-ad.com"))
+        assertTrue(result.rules.isBlocked("image-ad.com"))
+    }
+
+    @Test
+    fun skipsActionModifiers() {
+        val result = RuleParser.parse(
+            sequenceOf(
+                "||rewrite-ad.com^\$dnsrewrite=1.2.3.4",
+                "||deny-ad.com^\$denyallow=good.com",
+                "||popup-ad.com^\$popup",
+                "||plain-ad.com^"
+            )
+        )
+        assertEquals(1, result.kept)
+        assertEquals(3, result.skipped)
+        assertFalse(result.rules.isBlocked("rewrite-ad.com"))
+        assertTrue(result.rules.isBlocked("plain-ad.com"))
+    }
+
+    @Test
+    fun acceptsAddressSlashFormat() {
+        val rules = parse(
+            "address=/ads.dnsmasq.net/",
+            "address=/tracker.dnsmasq.net/0.0.0.0"
+        )
+        assertTrue(rules.isBlocked("ads.dnsmasq.net"))
+        assertTrue(rules.isBlocked("sub.tracker.dnsmasq.net"))
+    }
+
+    @Test
+    fun hostsLineUsesFirstHostAfterIp() {
+        val rules = parse("0.0.0.0 ads.hosts.net # yorum")
+        assertTrue(rules.isBlocked("ads.hosts.net"))
     }
 
     @Test

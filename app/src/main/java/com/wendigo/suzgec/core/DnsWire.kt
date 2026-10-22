@@ -4,7 +4,9 @@ object DnsWire {
 
     const val HEADER_SIZE = 12
     const val TYPE_A = 1
+    const val TYPE_CNAME = 5
     const val TYPE_AAAA = 28
+    const val TYPE_HTTPS = 65
     const val RCODE_NXDOMAIN = 3
 
     fun isResponse(msg: ByteArray, len: Int = msg.size): Boolean =
@@ -72,6 +74,72 @@ object DnsWire {
 
     fun wasTruncated(msg: ByteArray, len: Int): Boolean =
         len >= 4 && (msg[2].toInt() and 0x02) != 0
+
+    fun readName(msg: ByteArray, start: Int, len: Int = msg.size): Pair<String, Int>? {
+        if (start < 0 || start >= len) return null
+        val sb = StringBuilder()
+        var pos = start
+        var next = -1
+        var jumps = 0
+        var labels = 0
+        while (pos < len) {
+            val l = msg[pos].toInt() and 0xFF
+            if (l == 0) {
+                if (next < 0) next = pos + 1
+                break
+            }
+            if ((l and 0xC0) == 0xC0) {
+                if (pos + 1 >= len) return null
+                val ptr = ((l and 0x3F) shl 8) or (msg[pos + 1].toInt() and 0xFF)
+                if (next < 0) next = pos + 2
+                if (ptr >= len || ++jumps > 64) return null
+                pos = ptr
+                continue
+            }
+            if ((l and 0xC0) != 0 || l > 63) return null
+            if (pos + 1 + l > len) return null
+            if (sb.isNotEmpty()) sb.append('.')
+            for (i in 0 until l) {
+                val c = msg[pos + 1 + i].toInt() and 0xFF
+                if (c <= 0x20 || c >= 0x7F) return null
+                sb.append(if (c in 65..90) (c + 32).toChar() else c.toChar())
+            }
+            pos += 1 + l
+            labels++
+            if (labels > 127) return null
+        }
+        if (next < 0 || sb.isEmpty()) return null
+        return sb.toString() to next
+    }
+
+    fun cnameTargets(msg: ByteArray, len: Int = msg.size): List<String> {
+        if (len < HEADER_SIZE) return emptyList()
+        val qd = readU16(msg, 4)
+        val an = readU16(msg, 6)
+        if (an <= 0) return emptyList()
+        var pos = HEADER_SIZE
+        for (i in 0 until qd) {
+            val name = readName(msg, pos, len) ?: return emptyList()
+            pos = name.second + 4
+            if (pos > len) return emptyList()
+        }
+        val targets = ArrayList<String>(an)
+        for (i in 0 until an) {
+            val owner = readName(msg, pos, len) ?: break
+            pos = owner.second
+            if (pos + 10 > len) break
+            val type = readU16(msg, pos)
+            val rdlen = readU16(msg, pos + 8)
+            val rdata = pos + 10
+            if (rdata + rdlen > len) break
+            if (type == TYPE_CNAME) {
+                val target = readName(msg, rdata, len)
+                if (target != null) targets.add(target.first)
+            }
+            pos = rdata + rdlen
+        }
+        return targets
+    }
 
     fun buildError(query: ByteArray, len: Int, rcode: Int): ByteArray {
         val qEnd = questionEnd(query, len)

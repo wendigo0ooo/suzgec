@@ -59,4 +59,45 @@ class DnsWireTest {
         assertNull(DnsWire.questionEnd(sliced))
         assertNull(DnsWire.questionName(sliced))
     }
+
+    @Test
+    fun extractsCnameTargetsFromAnswer() {
+        val query = DnsWire.buildQuery("ads.example.com", DnsWire.TYPE_A, 0x4242)
+        val qEnd = DnsWire.questionEnd(query)!!
+        val target = encodeName("tracker.evil.net")
+        val header = query.copyOf(qEnd)
+        DnsWire.setU16(header, 2, 0x8180)
+        DnsWire.setU16(header, 6, 1)
+        val body = java.io.ByteArrayOutputStream()
+        body.write(header)
+        body.write(0xC0)
+        body.write(0x0C)
+        body.write(0); body.write(5)
+        body.write(0); body.write(1)
+        body.write(byteArrayOf(0, 0, 0, 60))
+        body.write((target.size shr 8) and 0xFF)
+        body.write(target.size and 0xFF)
+        body.write(target)
+        val msg = body.toByteArray()
+        assertEquals(listOf("tracker.evil.net"), DnsWire.cnameTargets(msg))
+    }
+
+    @Test
+    fun aaaaBlockReturnsNoData() {
+        val query = DnsWire.buildQuery("ads.example.org", DnsWire.TYPE_AAAA)
+        val response = DnsWire.buildAddressAnswer(query, query.size, byteArrayOf(0, 0, 0, 0))
+        assertNotNull(response)
+        assertEquals(0, DnsWire.rcode(response!!))
+        assertEquals(0, DnsWire.readU16(response, 6))
+    }
+
+    private fun encodeName(name: String): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        for (label in name.split('.')) {
+            out.write(label.length)
+            out.write(label.toByteArray())
+        }
+        out.write(0)
+        return out.toByteArray()
+    }
 }

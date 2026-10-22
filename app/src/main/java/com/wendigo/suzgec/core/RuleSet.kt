@@ -76,6 +76,18 @@ object RuleParser {
                 return@forEach
             }
 
+            if (line.startsWith("address=/", ignoreCase = true)) {
+                val rest = line.substringAfter("address=/")
+                val domain = toDomain(rest.substringBefore('/'))
+                if (domain == null) {
+                    skipped++
+                } else {
+                    block.add(domain)
+                    kept++
+                }
+                return@forEach
+            }
+
             var pattern = line
             var isAllow = false
             var isImportant = false
@@ -92,12 +104,13 @@ object RuleParser {
                 for (m in modifiers) {
                     val name = m.trim().lowercase()
                     when {
-                        name == "important" -> isImportant = true
                         name.isEmpty() -> Unit
-                        else -> {
+                        name == "important" -> isImportant = true
+                        isUnsupportedModifier(name) -> {
                             skipped++
                             return@forEach
                         }
+                        else -> Unit
                     }
                 }
             }
@@ -119,6 +132,17 @@ object RuleParser {
         return ParseResult(FilterRules(block, allow, important), kept, skipped)
     }
 
+    private fun isUnsupportedModifier(name: String): Boolean {
+        val base = name.substringBefore('=').trim()
+        return when (base) {
+            "badfilter", "denyallow", "dnsrewrite", "app", "client", "ctag",
+            "csp", "redirect", "redirect-rule", "removeparam", "replace", "cookie",
+            "header", "method", "to", "popup", "elemhide", "generichide",
+            "specifichide", "genericblock", "document" -> true
+            else -> false
+        }
+    }
+
     fun toDomain(patternRaw: String): String? {
         var p = patternRaw.trim()
         if (p.isEmpty()) return null
@@ -138,7 +162,7 @@ object RuleParser {
             val isHostsPrefix = head == "0.0.0.0" || head == "127.0.0.1" ||
                 head == "::1" || head == "::" || head == "255.255.255.255"
             if (!isHostsPrefix) return null
-            p = parts.last()
+            p = parts[1]
         } else if (parts.size == 1) {
             p = parts[0]
         } else {

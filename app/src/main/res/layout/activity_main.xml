@@ -524,6 +524,30 @@
                     android:textColor="@color/text"
                     android:textSize="14sp" />
 
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/settings_recommended"
+                    android:textColor="@color/text"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="4dp"
+                    android:text="@string/settings_recommended_hint"
+                    android:textColor="@color/text_dim"
+                    android:textSize="12.5sp" />
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/recommendedChips"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:chipSpacingHorizontal="6dp"
+                    app:chipSpacingVertical="2dp" />
+
                 <EditText
                     android:id="@+id/etListUrl"
                     android:layout_width="match_parent"
@@ -566,6 +590,23 @@
                     android:layout_marginTop="10dp"
                     android:textColor="@color/text_dim"
                     android:textSize="12.5sp" />
+
+                <Button
+                    android:id="@+id/btnDiagnostics"
+                    style="@style/Widget.Suzgec.Button.Outline"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/btn_diagnostics" />
+
+                <TextView
+                    android:id="@+id/diagnosticsInfo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/diagnostics_hint"
+                    android:textColor="@color/text_dim"
+                    android:textSize="12sp" />
 
                 <TextView
                     style="@style/Suzgec.SectionTitle"

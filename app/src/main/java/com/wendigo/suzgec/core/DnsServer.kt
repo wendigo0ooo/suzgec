@@ -29,7 +29,7 @@ class DnsServer(
     private var udpThread: Thread? = null
     private var tcpThread: Thread? = null
 
-    private val workers: ExecutorService = Executors.newFixedThreadPool(6) { r ->
+    private val workers: ExecutorService = Executors.newCachedThreadPool { r ->
         Thread(r, "suzgec-dns").apply { isDaemon = true }
     }
     private val tcpWorkers: ExecutorService = Executors.newCachedThreadPool { r ->
@@ -115,20 +115,15 @@ class DnsServer(
             return DnsWire.buildError(query, length, 1)
         }
 
-        val blocked = try {
-            rulesProvider().isBlocked(host)
+        val rules = try {
+            rulesProvider()
         } catch (_: Exception) {
-            false
+            FilterRules.EMPTY
         }
-        onResult(host, blocked)
-
-        if (blocked) {
-            return if (zeroAddressMode) {
-                DnsWire.buildAddressAnswer(query, length, byteArrayOf(0, 0, 0, 0))
-                    ?: DnsWire.buildError(query, length, DnsWire.RCODE_NXDOMAIN)
-            } else {
-                DnsWire.buildError(query, length, DnsWire.RCODE_NXDOMAIN)
-            }
+        val verdict = rules.verdict(host)
+        if (verdict == FilterRules.Verdict.BLOCK) {
+            onResult(host, true)
+            return blockResponse(query, length)
         }
 
         val packet = if (query.size == length) query else query.copyOf(length)
@@ -140,7 +135,35 @@ class DnsServer(
         if (answer == null || answer.size < DnsWire.HEADER_SIZE) {
             return DnsWire.buildError(query, length, 2)
         }
+        if (DnsWire.transactionId(answer) != DnsWire.transactionId(packet)) {
+            return DnsWire.buildError(query, length, 2)
+        }
+
+        if (verdict != FilterRules.Verdict.ALLOW) {
+            val hidden = try {
+                DnsWire.cnameTargets(answer).any {
+                    rules.verdict(it) == FilterRules.Verdict.BLOCK
+                }
+            } catch (_: Exception) {
+                false
+            }
+            if (hidden) {
+                onResult(host, true)
+                return blockResponse(query, length)
+            }
+        }
+
+        onResult(host, false)
         return answer
+    }
+
+    private fun blockResponse(query: ByteArray, length: Int): ByteArray {
+        return if (zeroAddressMode) {
+            DnsWire.buildAddressAnswer(query, length, byteArrayOf(0, 0, 0, 0))
+                ?: DnsWire.buildError(query, length, DnsWire.RCODE_NXDOMAIN)
+        } else {
+            DnsWire.buildError(query, length, DnsWire.RCODE_NXDOMAIN)
+        }
     }
 
     private fun udpLoop(socket: DatagramSocket) {
@@ -184,18 +207,20 @@ class DnsServer(
                 socket.soTimeout = 10000
                 val input = DataInputStream(BufferedInputStream(socket.getInputStream()))
                 val output = DataOutputStream(BufferedOutputStream(socket.getOutputStream()))
-                val length = try {
-                    input.readUnsignedShort()
-                } catch (_: Exception) {
-                    return
+                while (running.get()) {
+                    val length = try {
+                        input.readUnsignedShort()
+                    } catch (_: Exception) {
+                        return
+                    }
+                    if (length <= 0) return
+                    val query = ByteArray(length)
+                    input.readFully(query)
+                    val response = handle(query, query.size) ?: continue
+                    output.writeShort(response.size)
+                    output.write(response)
+                    output.flush()
                 }
-                if (length <= 0) return
-                val query = ByteArray(length)
-                input.readFully(query)
-                val response = handle(query, query.size) ?: return
-                output.writeShort(response.size)
-                output.write(response)
-                output.flush()
             }
         } catch (_: Exception) {
         }

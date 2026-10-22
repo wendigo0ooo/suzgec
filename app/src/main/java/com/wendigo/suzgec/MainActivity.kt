@@ -71,6 +71,9 @@ class MainActivity : AppCompatActivity() {
 
     private var currentPage = 0
     private var busy = false
+    private var syncingNav = false
+
+    private lateinit var recommendedChips: ChipGroup
 
     private val handler = Handler(Looper.getMainLooper())
     private val refresher = object : Runnable {
@@ -82,12 +85,17 @@ class MainActivity : AppCompatActivity() {
 
     private val notifPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) {
-        FilterService.start(this)
+    ) { granted ->
+        if (granted) {
+            FilterService.start(this)
+        } else {
+            toast(getString(R.string.notif_permission_needed))
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CrashLog.install(this)
         store = Store(this)
         Stats.init(this)
         setContentView(R.layout.activity_main)
@@ -103,11 +111,13 @@ class MainActivity : AppCompatActivity() {
         )
         nav = findViewById(R.id.bottomNav)
         nav.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_status -> selectPage(0)
-                R.id.nav_tunnel -> selectPage(1)
-                R.id.nav_settings -> selectPage(2)
+            if (syncingNav) return@setOnItemSelectedListener true
+            val index = when (item.itemId) {
+                R.id.nav_status -> 0
+                R.id.nav_tunnel -> 1
+                else -> 2
             }
+            selectPage(index, syncNav = false)
             true
         }
 
@@ -141,17 +151,25 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
     }
 
-    private fun selectPage(index: Int) {
+    private fun selectPage(index: Int, syncNav: Boolean = true) {
         currentPage = index
         pages.forEachIndexed { i, view ->
             view.visibility = if (i == index) View.VISIBLE else View.GONE
         }
+        if (!syncNav) return
         val itemId = when (index) {
             0 -> R.id.nav_status
             1 -> R.id.nav_tunnel
             else -> R.id.nav_settings
         }
-        if (nav.selectedItemId != itemId) nav.selectedItemId = itemId
+        if (nav.selectedItemId != itemId) {
+            syncingNav = true
+            try {
+                nav.selectedItemId = itemId
+            } finally {
+                syncingNav = false
+            }
+        }
     }
 
     private fun bindStatusPage() {
@@ -211,6 +229,7 @@ class MainActivity : AppCompatActivity() {
 
         val error = FilterService.lastError
         statusDetail.text = when {
+            FilterService.loading -> getString(R.string.status_detail_loading)
             running -> getString(
                 R.string.status_detail_running,
                 FilterService.boundPort,
@@ -219,6 +238,8 @@ class MainActivity : AppCompatActivity() {
             !error.isNullOrBlank() -> error
             else -> getString(R.string.status_detail_stopped, store.port)
         }
+
+        btnToggle.isEnabled = !FilterService.loading
 
         btnToggle.text = if (running) getString(R.string.action_stop) else getString(R.string.action_start)
         btnToggle.backgroundTintList = ColorStateList.valueOf(
@@ -381,6 +402,7 @@ class MainActivity : AppCompatActivity() {
         listContainer = findViewById(R.id.listContainer)
         settingsInfo = findViewById(R.id.settingsInfo)
         aboutText = findViewById(R.id.aboutText)
+        recommendedChips = findViewById(R.id.recommendedChips)
 
         etPort.setText(store.port.toString())
         etPort.inputType = InputType.TYPE_CLASS_NUMBER
@@ -447,15 +469,30 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.btnAddList).setOnClickListener { addList() }
-        findViewById<Button>(R.id.btnReload).setOnClickListener {
-            if (FilterService.running) {
-                FilterService.reload(this)
-            }
-            rebuildListRows()
-            toast(getString(R.string.reloading))
-        }
+        findViewById<Button>(R.id.btnReload).setOnClickListener { refreshLists() }
+        findViewById<Button>(R.id.btnDiagnostics).setOnClickListener { copyDiagnostics() }
 
+        setupRecommendedChips()
         rebuildListRows()
+    }
+
+    private fun setupRecommendedChips() {
+        recommendedChips.removeAllViews()
+        for (item in Recommended.LISTS) {
+            val chip = Chip(this)
+            chip.text = item.label
+            chip.isCheckable = false
+            chip.isClickable = true
+            chip.setEnsureMinTouchTargetSize(false)
+            chip.setOnClickListener {
+                if (store.userLists.contains(item.url)) {
+                    toast(getString(R.string.err_list_exists))
+                } else {
+                    addListFrom(item.url)
+                }
+            }
+            recommendedChips.addView(chip)
+        }
     }
 
     private fun reloadIfRunning() {
@@ -514,11 +551,7 @@ class MainActivity : AppCompatActivity() {
             FilterService.ruleCount,
             FilterService.sourceCount
         )
-        val version = try {
-            packageManager.getPackageInfo(packageName, 0).versionName ?: "1.0"
-        } catch (_: Exception) {
-            "1.0"
-        }
+        val version = packageVersion()
         aboutText.text = getString(R.string.about_text, version)
     }
 
@@ -537,12 +570,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun addList() {
-        if (busy) return
         val url = etListUrl.text.toString().trim()
         if (!url.startsWith("https://")) {
             toast(getString(R.string.err_https_required))
             return
         }
+        addListFrom(url)
+    }
+
+    private fun addListFrom(url: String) {
+        if (busy) return
         if (store.userLists.contains(url)) {
             toast(getString(R.string.err_list_exists))
             return
@@ -566,6 +603,64 @@ class MainActivity : AppCompatActivity() {
                 reloadIfRunning()
             }
         }.start()
+    }
+
+    private fun refreshLists() {
+        if (busy) return
+        val urls = store.userLists.toList()
+        if (urls.isEmpty()) {
+            if (FilterService.running) FilterService.reload(this)
+            toast(getString(R.string.reloading))
+            return
+        }
+        busy = true
+        toast(getString(R.string.reloading))
+        Thread {
+            var ok = 0
+            var failed = 0
+            for (url in urls) {
+                try {
+                    val text = FilterStore(this).download(url)
+                    FilterStore(this).save(url, text)
+                    ok++
+                } catch (_: Exception) {
+                    failed++
+                }
+            }
+            runOnUiThread {
+                busy = false
+                rebuildListRows()
+                if (FilterService.running) FilterService.reload(this)
+                toast(getString(R.string.refresh_done, ok, failed))
+            }
+        }.start()
+    }
+
+    private fun copyDiagnostics() {
+        val text = buildString {
+            appendLine("Süzgeç ${packageVersion()}")
+            appendLine("durum: ${if (FilterService.running) "çalışıyor" else "durdu"}")
+            appendLine("port: ${if (FilterService.running) FilterService.boundPort else store.port}")
+            appendLine("kural: ${FilterService.ruleCount} · kaynak: ${FilterService.sourceCount}")
+            appendLine("yükleniyor: ${FilterService.loading}")
+            appendLine("son hata: ${FilterService.lastError ?: "-"}")
+            appendLine("upstream: ${store.upstreamKey}${if (store.upstreamKey == "custom") " ${store.customDoh}" else ""}")
+            appendLine("liste sayısı: ${store.userLists.size}")
+            appendLine("bugün: ${Stats.todayQueryCount()} sorgu · ${Stats.todayBlockedCount()} engellendi")
+            val crash = CrashLog.read(this@MainActivity)
+            if (crash.isNotBlank()) {
+                appendLine()
+                appendLine("--- son kayıtlar ---")
+                append(crash)
+            }
+        }
+        copyToClipboard(getString(R.string.copy_label_diagnostics), text)
+    }
+
+    private fun packageVersion(): String = try {
+        packageManager.getPackageInfo(packageName, 0).versionName ?: "1.0"
+    } catch (_: Exception) {
+        "1.0"
     }
 
     private fun runTest(target: TextView) {
