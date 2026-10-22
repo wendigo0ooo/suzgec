@@ -36,7 +36,7 @@ class RuleSetTest {
         val rules = parse(
             "||tracker.io^",
             "@@||tracker.io^",
-            "||tracker.io^$important"
+            "||tracker.io^\$important"
         )
         assertTrue(rules.isBlocked("tracker.io"))
     }
@@ -45,8 +45,8 @@ class RuleSetTest {
     fun skipsUnknownModifiers() {
         val result = RuleParser.parse(
             sequenceOf(
-                "||script-ad.com^$script",
-                "||image-ad.com^$image,third-party",
+                "||script-ad.com^\$script",
+                "||image-ad.com^\$image,third-party",
                 "||plain-ad.com^"
             )
         )
