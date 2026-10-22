@@ -170,7 +170,6 @@ class FilterService : Service() {
         server = null
         running = false
         boundPort = 0
-        Store(this).serviceWanted = false
         Stats.flush()
         try {
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
@@ -309,8 +308,8 @@ class FilterService : Service() {
             }
         }
 
-        fun stop(context: Context) {
-            Store(context).serviceWanted = false
+        fun stop(context: Context, clearWanted: Boolean = true) {
+            if (clearWanted) Store(context).serviceWanted = false
             val intent = Intent(context, FilterService::class.java).setAction(ACTION_STOP)
             try {
                 context.startService(intent)

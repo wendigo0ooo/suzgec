@@ -211,8 +211,8 @@ def check_manifest(strings):
         if perm not in raw:
             err("Manifestte izin yok: %s" % perm)
 
-    if "BIND_VPN_SERVICE" in raw or "android.net.VpnService" in raw:
-        err("Süzgeç VpnService kullanmamalı (tünel ile çakışır)")
+    if '<uses-permission android:name="android.permission.BIND_VPN_SERVICE"' in raw:
+        warn("BIND_VPN_SERVICE uses-permission olarak istenmemeli; servis özniteliği yeterli")
 
     app = root.find("application")
     if app is None:
@@ -224,6 +224,7 @@ def check_manifest(strings):
         err("usesCleartextTraffic=false olmalı")
 
     service_found = False
+    vpn_found = False
     activity_found = False
     for el in app:
         t = tag(el)
@@ -234,10 +235,24 @@ def check_manifest(strings):
                 err("FilterService foregroundServiceType=specialUse olmalı")
             if "PROPERTY_SPECIAL_USE_FGS_SUBTYPE" not in ET.tostring(el, encoding="unicode"):
                 err("specialUse alt tip açıklaması eksik")
+        if t == "service" and android_attr(el, "name") == ".SuzgecVpnService":
+            vpn_found = True
+            if android_attr(el, "permission") != "android.permission.BIND_VPN_SERVICE":
+                err("SuzgecVpnService BIND_VPN_SERVICE izniyle korunmalı")
+            fgs = android_attr(el, "foregroundServiceType")
+            if fgs != "specialUse":
+                err("SuzgecVpnService foregroundServiceType=specialUse olmalı")
+            body = ET.tostring(el, encoding="unicode")
+            if "android.net.VpnService" not in body:
+                err("SuzgecVpnService android.net.VpnService intent-filter içermeli")
+            if "PROPERTY_SPECIAL_USE_FGS_SUBTYPE" not in body:
+                err("SuzgecVpnService specialUse alt tip açıklaması eksik")
         if t == "activity" and android_attr(el, "name") == ".MainActivity":
             activity_found = True
     if not service_found:
         err("Manifestte FilterService yok")
+    if not vpn_found:
+        err("Manifestte SuzgecVpnService yok")
     if not activity_found:
         err("Manifestte MainActivity yok")
 
@@ -264,11 +279,17 @@ def check_sources():
     required = [
         "MainActivity.kt",
         "FilterService.kt",
+        "SuzgecVpnService.kt",
         "FilterStore.kt",
         "Store.kt",
         "Stats.kt",
+        "VpnStatus.kt",
+        "Protection.kt",
+        "BootReceiver.kt",
         "core/DnsServer.kt",
         "core/DnsWire.kt",
+        "core/DnsEngine.kt",
+        "core/IpPacket.kt",
         "core/RuleSet.kt",
         "core/Upstream.kt",
     ]
@@ -277,7 +298,7 @@ def check_sources():
         if not os.path.isfile(os.path.join(base, rel)):
             err("Kaynak dosya yok: %s" % rel)
     tests = os.path.join(ROOT, "app", "src", "test", "java", "com", "wendigo", "suzgec", "core")
-    for rel in ("DnsWireTest.kt", "RuleSetTest.kt"):
+    for rel in ("DnsWireTest.kt", "RuleSetTest.kt", "DnsEngineTest.kt", "IpPacketTest.kt"):
         if not os.path.isfile(os.path.join(tests, rel)):
             err("Test dosyası yok: %s" % rel)
 

@@ -44,6 +44,55 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:background="@drawable/panel_bg"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/mode_title"
+                        android:textColor="@color/text"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/modeDesc"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:lineSpacingExtra="3dp"
+                        android:text="@string/mode_vpn_desc"
+                        android:textColor="@color/text_dim"
+                        android:textSize="12.5sp" />
+
+                    <RadioGroup
+                        android:id="@+id/rgMode"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:orientation="vertical">
+
+                        <RadioButton
+                            android:id="@+id/rbModeVpn"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/mode_vpn"
+                            android:textColor="@color/text" />
+
+                        <RadioButton
+                            android:id="@+id/rbModeTunnel"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/mode_tunnel"
+                            android:textColor="@color/text" />
+                    </RadioGroup>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
                     android:layout_marginTop="18dp"
                     android:background="@drawable/panel_bg"
                     android:gravity="center_vertical"
@@ -81,6 +130,15 @@
                             android:textSize="12.5sp" />
                     </LinearLayout>
                 </LinearLayout>
+
+                <TextView
+                    android:id="@+id/routeInfo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:lineSpacingExtra="3dp"
+                    android:textColor="@color/text_dim"
+                    android:textSize="12.5sp" />
 
                 <Button
                     android:id="@+id/btnToggle"
@@ -265,6 +323,17 @@
                     android:text="@string/tunnel_intro"
                     android:textColor="@color/text_dim"
                     android:textSize="13.5sp" />
+
+                <TextView
+                    android:id="@+id/tunnelRouteInfo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/note_bg"
+                    android:lineSpacingExtra="3dp"
+                    android:padding="12dp"
+                    android:textColor="@color/text"
+                    android:textSize="12.5sp" />
 
                 <TextView
                     style="@style/Suzgec.SectionTitle"

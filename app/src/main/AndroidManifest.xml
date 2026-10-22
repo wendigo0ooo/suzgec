@@ -28,6 +28,19 @@
         </activity>
 
         <service
+            android:name=".SuzgecVpnService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="DNS-only local VPN that filters DNS queries; the app does not proxy other traffic." />
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+
+        <service
             android:name=".FilterService"
             android:exported="false"
             android:foregroundServiceType="specialUse">

@@ -112,6 +112,34 @@ object DnsWire {
         return sb.toString() to next
     }
 
+    fun answerAddresses(msg: ByteArray, len: Int = msg.size): List<ByteArray> {
+        if (len < HEADER_SIZE) return emptyList()
+        val qd = readU16(msg, 4)
+        val an = readU16(msg, 6)
+        if (an <= 0) return emptyList()
+        var pos = HEADER_SIZE
+        for (i in 0 until qd) {
+            val name = readName(msg, pos, len) ?: return emptyList()
+            pos = name.second + 4
+            if (pos > len) return emptyList()
+        }
+        val addresses = ArrayList<ByteArray>(an)
+        for (i in 0 until an) {
+            val owner = readName(msg, pos, len) ?: break
+            pos = owner.second
+            if (pos + 10 > len) break
+            val type = readU16(msg, pos)
+            val rdlen = readU16(msg, pos + 8)
+            val rdata = pos + 10
+            if (rdata + rdlen > len) break
+            if (type == TYPE_A && rdlen == 4) {
+                addresses.add(msg.copyOfRange(rdata, rdata + 4))
+            }
+            pos = rdata + rdlen
+        }
+        return addresses
+    }
+
     fun cnameTargets(msg: ByteArray, len: Int = msg.size): List<String> {
         if (len < HEADER_SIZE) return emptyList()
         val qd = readU16(msg, 4)

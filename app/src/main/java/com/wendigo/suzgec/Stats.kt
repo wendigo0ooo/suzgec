@@ -30,6 +30,8 @@ object Stats {
         private set
     @Volatile var dayBlocked: Long = 0
         private set
+    @Volatile var lastQueryAt: Long = 0
+        private set
 
     private var dayKey: String = todayKey()
 
@@ -54,6 +56,7 @@ object Stats {
     fun onQuery(host: String?, isBlocked: Boolean) {
         synchronized(lock) {
             rollDayIfNeeded()
+            lastQueryAt = System.currentTimeMillis()
             total++
             dayTotal++
             if (isBlocked) {

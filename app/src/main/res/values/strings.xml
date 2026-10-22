@@ -7,9 +7,15 @@
     <string name="nav_settings">Ayarlar</string>
 
     <string name="title">Süzgeç</string>
-    <string name="subtitle">Reklamları DNS seviyesinde süzer. VPN kullanmaz, tünelinle çakışmaz.</string>
+    <string name="subtitle">Reklamları DNS seviyesinde süzer. Kendi hafif VPN\'iyle tek dokunuşla çalışır; istersen tünelinle birlikte kullan.</string>
 
-    <string name="status_running">Çalışıyor</string>
+    <string name="mode_title">Koruma modu</string>
+    <string name="mode_vpn">Kendi VPN\'i ile (önerilen)</string>
+    <string name="mode_tunnel">Tünel uygulamasıyla birlikte</string>
+    <string name="mode_vpn_desc">Süzgeç yalnız DNS trafiğini yakalayan küçük bir VPN açar. Ayar gerekmez, tünel uygulaması olmadan da çalışır. Aynı anda başka bir VPN açılamaz.</string>
+    <string name="mode_tunnel_desc">VPN açılmaz; 127.0.0.1 üzerinde yerel DNS sunucusu çalışır. Tünel uygulamanın DNS ayarını bu adrese yönlendirmen gerekir.</string>
+
+    <string name="status_running">Koruma açık</string>
     <string name="status_stopped">Durduruldu</string>
     <string name="status_detail_running">127.0.0.1:%1$d · %2$d kural yüklü</string>
     <string name="status_detail_stopped">Başlatmak için aşağıdaki düğmeye dokun (port %1$d)</string>
@@ -37,7 +43,7 @@
     <string name="limits_note">Not: DNS seviyesinde filtreleme reklamların çoğunu engeller. Ancak bir uygulama kendi DoH/DoT sunucusunu kullanıyorsa, reklam sabit bir IP üzerinden geliyorsa veya reklam normal içerikle aynı alan adından servis ediliyorsa süzülemez.</string>
 
     <string name="tunnel_title">Tünel ile birlikte kullan</string>
-    <string name="tunnel_intro">Android aynı anda yalnızca bir VPN uygulamasına izin verir. Bu yüzden Süzgeç VPN açmaz; 127.0.0.1 üzerinde yerel bir DNS filtresi çalıştırır. Tünel uygulamanın DNS ayarını bu adrese yönlendirdiğinde reklamlar tünelin içinden geçerken süzülür.</string>
+    <string name="tunnel_intro">Bu modda Süzgeç VPN açmaz; 127.0.0.1 üzerinde yerel bir DNS filtresi çalıştırır. Tünel uygulamanın DNS ayarını bu adrese yönlendirdiğinde reklamlar tünelin içinden geçerken süzülür. Android aynı anda yalnızca bir VPN uygulamasına izin verir.</string>
     <string name="tunnel_client_label">Tünel uygulaman</string>
     <string name="tunnel_steps_label">Adımlar</string>
     <string name="tunnel_config_label">Yapılandırma</string>
@@ -51,11 +57,11 @@
     <string name="copy_label_config">Süzgeç yapılandırması</string>
     <string name="copy_label_dns">Süzgeç DNS adresi</string>
     <string name="copied">Panoya kopyalandı</string>
-    <string name="tunnel_note">Tünel kapalıyken cihaz geneli süzme için Android ayarlarındaki Özel DNS alanına dns.adguard-dns.com yazabilirsin. Tünel açıkken tünelin DNS ayarı geçerlidir.</string>
+    <string name="tunnel_note">Tünel açıkken tünelin DNS ayarı geçerlidir. Tünel kapalıyken cihaz geneli süzme için kendi VPN modunu kullanabilir veya Android ayarlarındaki Özel DNS alanına dns.adguard-dns.com yazabilirsin.</string>
 
     <string name="settings_title">Ayarlar</string>
     <string name="settings_connection">Bağlantı</string>
-    <string name="settings_port_label">Yerel DNS portu (1024–65535)</string>
+    <string name="settings_port_label">Yerel DNS portu (yalnız tünel modu, 1024–65535)</string>
     <string name="settings_upstream">DNS sağlayıcı (upstream)</string>
     <string name="rb_adguard">AdGuard DNS (alan adı)</string>
     <string name="rb_quad9">Quad9</string>
@@ -75,7 +81,7 @@
     <string name="list_line_count">%1$d satır</string>
     <string name="settings_info">%1$d kural · %2$d liste kaynağı</string>
     <string name="about_title">Hakkında</string>
-    <string name="about_text">Süzgeç %1$s\nReklamları DNS seviyesinde engelleyen, VPN kullanmayan yerel filtre. Veriler cihazında kalır; hiçbir istatistik gönderilmez. Harici listeler yalnızca sen eklediğinde indirilir.</string>
+    <string name="about_text">Süzgeç %1$s\nReklamları DNS seviyesinde engelleyen yerel filtre. Kendi DNS-only VPN\'iyle ayarsız çalışır veya bir tünel uygulamasıyla birlikte kullanılabilir. Veriler cihazında kalır; hiçbir istatistik gönderilmez. Harici listeler yalnızca sen eklediğinde indirilir.</string>
 
     <string name="notif_channel_name">Süzgeç durumu</string>
     <string name="notif_channel_desc">Filtre çalışırken gösterilen sessiz bildirim</string>
@@ -83,6 +89,13 @@
     <string name="notif_title_error">Süzgeç durdu</string>
     <string name="notif_text_running">Port %1$d · %2$d kural · bugün %3$d engellendi</string>
     <string name="notif_text_idle">Hazır</string>
+    <string name="notif_vpn_running">Süzgeç koruması açık</string>
+    <string name="notif_vpn_text">VPN · %1$d kural · bugün %2$d engellendi</string>
+    <string name="vpn_permission_needed">VPN izni verilmedi; koruma başlatılamadı.</string>
+    <string name="vpn_establish_failed">VPN tüneli kurulamadı. Başka bir VPN açık olabilir; kapatıp yeniden dene.</string>
+    <string name="vpn_revoked_fallback">Başka bir VPN açıldı; Süzgeç yerel DNS moduna geçti.</string>
+    <string name="vpn_switch_warning">Şu an başka bir VPN açık. Süzgeç\'in kendi VPN\'ini başlatınca o VPN kapanacak. Devam edilsin mi?</string>
+    <string name="vpn_switch_positive">Devam et</string>
 
     <string name="err_https_required">Adres https:// ile başlamalı</string>
     <string name="err_port">Geçerli bir port gir (1024–65535)</string>
@@ -101,6 +114,18 @@
     <string name="copy_label_diagnostics">Süzgeç tanı bilgisi</string>
     <string name="refresh_done">Listeler güncellendi: %1$d başarılı, %2$d hatalı</string>
     <string name="notif_permission_needed">Bildirim izni verilmedi; filtre arka planda bildirimsiz çalışamaz.</string>
+    <string name="status_vpn_detail">VPN · %1$d kural yüklü</string>
+    <string name="status_vpn_stopped">Başlatmak için aşağıdaki düğmeye dokun; Android VPN izni isteyecek.</string>
+    <string name="route_vpn_stopped">Koruma kapalıyken DNS sorguları Süzgeç üzerinden geçmez.</string>
+    <string name="route_vpn_ready">DNS sorguları Süzgeç\'in VPN\'i üzerinden geçiyor. Sorgu sayacı artıyorsa koruma çalışıyor demektir.</string>
+    <string name="route_vpn_idle">Koruma açık ama son 60 saniyede sorgu gelmedi. Tarayıcının Güvenli DNS/DoH özelliğini kapatmayı dene.</string>
+    <string name="route_vpn_inactive">VPN bağlantısı görünmüyor. Durdurup yeniden başlatmayı dene.</string>
+    <string name="route_tunnel_stopped">Yerel DNS sunucusu kapalı.</string>
+    <string name="route_tunnel_ok">Tünel algılandı ve DNS\'i Süzgeç\'e (127.0.0.1) yönlendirilmiş.</string>
+    <string name="route_tunnel_wrong">Tünel açık ama DNS\'i Süzgeç\'e bakmıyor (%1$s). Tünel ayarlarında DNS\'i 127.0.0.1:%2$d yap.</string>
+    <string name="route_tunnel_no_vpn">Tünel açık değil. Yerel DNS 127.0.0.1:%1$d hazır; tüneli açınca DNS\'i buraya ver.</string>
+    <string name="stats_vpn_address">DNS: VPN içinde otomatik · %1$s</string>
+
     <string name="status_detail_loading">Filtre listeleri yükleniyor…</string>
     <string name="notif_title_loading">Süzgeç hazırlanıyor</string>
     <string name="notif_text_loading">Filtre listeleri yükleniyor…</string>

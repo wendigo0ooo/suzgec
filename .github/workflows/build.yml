@@ -69,11 +69,11 @@ jobs:
         if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0-build${{ github.run_number }}
+          tag_name: v2.0-build${{ github.run_number }}
           name: Süzgeç (build ${{ github.run_number }})
           body: |
             Otomatik derlenen Süzgeç APK'ları (debug + imzalı release).
-            Reklamları DNS seviyesinde süzen, VPN kullanmayan yerel filtre.
+            Reklamları DNS seviyesinde süzen yerel filtre: kendi DNS-only VPN modu veya tünel uygulamasıyla birlikte.
             Commit: ${{ github.sha }}
           files: out/*.apk
           fail_on_unmatched_files: true

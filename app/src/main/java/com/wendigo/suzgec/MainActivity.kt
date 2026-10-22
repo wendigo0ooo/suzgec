@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.content.res.Configuration
+import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -39,6 +40,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var store: Store
     private lateinit var pages: List<View>
     private lateinit var nav: BottomNavigationView
+
+    private lateinit var rgMode: RadioGroup
+    private lateinit var modeDesc: TextView
+    private lateinit var routeInfo: TextView
+    private lateinit var tunnelRouteInfo: TextView
 
     private lateinit var statusDot: View
     private lateinit var statusText: TextView
@@ -72,6 +78,7 @@ class MainActivity : AppCompatActivity() {
     private var currentPage = 0
     private var busy = false
     private var syncingNav = false
+    private var syncingMode = false
 
     private lateinit var recommendedChips: ChipGroup
 
@@ -87,9 +94,22 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
-            FilterService.start(this)
+            beginStart()
         } else {
             toast(getString(R.string.notif_permission_needed))
+        }
+    }
+
+    private val vpnConsent = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            if (!Protection.start(this)) {
+                toast(Protection.lastError(this) ?: getString(R.string.vpn_establish_failed))
+            }
+        } else {
+            Store(this).serviceWanted = false
+            toast(getString(R.string.vpn_permission_needed))
         }
     }
 
@@ -124,14 +144,21 @@ class MainActivity : AppCompatActivity() {
         bindStatusPage()
         bindTunnelPage()
         bindSettingsPage()
+        updateStatus()
 
         currentPage = savedInstanceState?.getInt(KEY_PAGE, 0) ?: 0
         selectPage(currentPage)
 
-        if (store.serviceWanted && !FilterService.running) {
-            try {
+        if (store.serviceWanted) {
+            if (store.mode == Store.MODE_VPN) {
+                if (!SuzgecVpnService.active &&
+                    !VpnStatus.otherVpnActive(this) &&
+                    VpnService.prepare(this) == null
+                ) {
+                    SuzgecVpnService.start(this)
+                }
+            } else if (!FilterService.running) {
                 FilterService.start(this)
-            } catch (_: Exception) {
             }
         }
     }
@@ -177,6 +204,28 @@ class MainActivity : AppCompatActivity() {
         statusText = findViewById(R.id.statusText)
         statusDetail = findViewById(R.id.statusDetail)
         btnToggle = findViewById(R.id.btnToggle)
+        rgMode = findViewById(R.id.rgMode)
+        modeDesc = findViewById(R.id.modeDesc)
+        routeInfo = findViewById(R.id.routeInfo)
+
+        rgMode.check(if (store.mode == Store.MODE_VPN) R.id.rbModeVpn else R.id.rbModeTunnel)
+        updateModeDesc()
+        rgMode.setOnCheckedChangeListener { _, checkedId ->
+            if (syncingMode) return@setOnCheckedChangeListener
+            val newMode = if (checkedId == R.id.rbModeTunnel) {
+                Store.MODE_TUNNEL
+            } else {
+                Store.MODE_VPN
+            }
+            if (newMode == store.mode) return@setOnCheckedChangeListener
+            store.mode = newMode
+            updateModeDesc()
+            updateStatus()
+            if (store.serviceWanted) {
+                Protection.stopForSwitch(this)
+                handler.postDelayed({ startFiltering() }, 400)
+            }
+        }
         statQueries = findViewById(R.id.statQueries)
         statBlocked = findViewById(R.id.statBlocked)
         statToday = findViewById(R.id.statToday)
@@ -186,14 +235,14 @@ class MainActivity : AppCompatActivity() {
         testResult = findViewById(R.id.testResult)
 
         btnToggle.setOnClickListener {
-            if (FilterService.running) {
-                FilterService.stop(this)
+            if (Protection.active(this)) {
+                Protection.stop(this)
             } else {
                 startFiltering()
             }
         }
         findViewById<Button>(R.id.btnTest).setOnClickListener {
-            if (!FilterService.running) {
+            if (!Protection.active(this)) {
                 testResult.text = getString(R.string.test_need_start)
                 return@setOnClickListener
             }
@@ -204,7 +253,6 @@ class MainActivity : AppCompatActivity() {
             recentSignature = ""
             updateStatus()
         }
-        updateStatus()
     }
 
     private fun startFiltering() {
@@ -214,12 +262,66 @@ class MainActivity : AppCompatActivity() {
         ) {
             notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
-            FilterService.start(this)
+            beginStart()
         }
     }
 
+    private fun beginStart() {
+        when {
+            store.mode == Store.MODE_VPN -> askVpnStart()
+            else -> if (!Protection.start(this)) {
+                toast(Protection.lastError(this) ?: getString(R.string.err_generic))
+            }
+        }
+    }
+
+    private fun askVpnStart() {
+        if (VpnStatus.otherVpnActive(this)) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.mode_title)
+                .setMessage(R.string.vpn_switch_warning)
+                .setPositiveButton(R.string.vpn_switch_positive) { _, _ -> launchVpnConsent() }
+                .setNegativeButton(R.string.action_cancel, null)
+                .show()
+            return
+        }
+        launchVpnConsent()
+    }
+
+    private fun launchVpnConsent() {
+        val intent = try {
+            VpnService.prepare(this)
+        } catch (e: Exception) {
+            CrashLog.append(this, "VPN-PREPARE", e.toString())
+            null
+        }
+        if (intent == null) {
+            if (!Protection.start(this)) {
+                toast(Protection.lastError(this) ?: getString(R.string.vpn_establish_failed))
+            }
+        } else {
+            try {
+                vpnConsent.launch(intent)
+            } catch (e: Exception) {
+                toast(getString(R.string.vpn_permission_needed))
+            }
+        }
+    }
+
+    private fun updateModeDesc() {
+        modeDesc.text = getString(
+            if (store.mode == Store.MODE_VPN) R.string.mode_vpn_desc else R.string.mode_tunnel_desc
+        )
+    }
+
     private fun updateStatus() {
-        val running = FilterService.running
+        val modeVpn = store.mode == Store.MODE_VPN
+        val running = Protection.active(this)
+        val loading = Protection.loading(this)
+        val error = Protection.lastError(this)
+        val rules = Protection.ruleCount(this)
+        val sources = Protection.sourceCount(this)
+
         statusDot.setBackgroundResource(if (running) R.drawable.dot_on else R.drawable.dot_off)
         statusText.text = if (running) {
             getString(R.string.status_running)
@@ -227,20 +329,16 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.status_stopped)
         }
 
-        val error = FilterService.lastError
         statusDetail.text = when {
-            FilterService.loading -> getString(R.string.status_detail_loading)
-            running -> getString(
-                R.string.status_detail_running,
-                FilterService.boundPort,
-                FilterService.ruleCount
-            )
+            loading -> getString(R.string.status_detail_loading)
+            running && modeVpn -> getString(R.string.status_vpn_detail, rules)
+            running -> getString(R.string.status_detail_running, FilterService.boundPort, rules)
             !error.isNullOrBlank() -> error
+            modeVpn -> getString(R.string.status_vpn_stopped)
             else -> getString(R.string.status_detail_stopped, store.port)
         }
 
-        btnToggle.isEnabled = !FilterService.loading
-
+        btnToggle.isEnabled = !loading
         btnToggle.text = if (running) getString(R.string.action_stop) else getString(R.string.action_start)
         btnToggle.backgroundTintList = ColorStateList.valueOf(
             ContextCompat.getColor(this, if (running) R.color.danger else R.color.accent)
@@ -253,12 +351,40 @@ class MainActivity : AppCompatActivity() {
             Stats.todayQueryCount(),
             Stats.todayBlockedCount()
         )
-        ruleInfo.text = getString(
-            R.string.stats_rules,
-            FilterService.ruleCount,
-            FilterService.sourceCount
+        ruleInfo.text = getString(R.string.stats_rules, rules, sources)
+        portInfo.text = if (modeVpn) {
+            getString(
+                R.string.stats_vpn_address,
+                "${SuzgecVpnService.DNS_V4} / ${SuzgecVpnService.DNS_V6}"
+            )
+        } else {
+            getString(
+                R.string.stats_port,
+                if (FilterService.running) FilterService.boundPort else store.port
+            )
+        }
+
+        val radioId = if (modeVpn) R.id.rbModeVpn else R.id.rbModeTunnel
+        if (rgMode.checkedRadioButtonId != radioId) {
+            syncingMode = true
+            try {
+                rgMode.check(radioId)
+            } finally {
+                syncingMode = false
+            }
+        }
+
+        val snapshot = VpnStatus.snapshot(this)
+        val message = routeMessage(modeVpn, running, snapshot)
+        val wrongTunnel = !modeVpn && running && snapshot.vpnActive && !snapshot.loopbackDns
+        routeInfo.text = message
+        routeInfo.setTextColor(
+            ContextCompat.getColor(this, if (wrongTunnel) R.color.danger else R.color.text_dim)
         )
-        portInfo.text = getString(R.string.stats_port, if (running) FilterService.boundPort else store.port)
+        tunnelRouteInfo.text = message
+        tunnelRouteInfo.setTextColor(
+            ContextCompat.getColor(this, if (wrongTunnel) R.color.danger else R.color.text)
+        )
 
         val recent = Stats.recentBlocked()
         val signature = buildString {
@@ -269,6 +395,33 @@ class MainActivity : AppCompatActivity() {
         if (signature != recentSignature) {
             recentSignature = signature
             rebuildRecent(recent)
+        }
+    }
+
+    private fun routeMessage(
+        modeVpn: Boolean,
+        running: Boolean,
+        snapshot: VpnStatus.Snapshot
+    ): String {
+        if (modeVpn) {
+            return when {
+                !running -> getString(R.string.route_vpn_stopped)
+                !snapshot.vpnActive -> getString(R.string.route_vpn_inactive)
+                Stats.lastQueryAt > 0 &&
+                    System.currentTimeMillis() - Stats.lastQueryAt > 60_000 ->
+                    getString(R.string.route_vpn_idle)
+                else -> getString(R.string.route_vpn_ready)
+            }
+        }
+        return when {
+            !running -> getString(R.string.route_tunnel_stopped)
+            snapshot.vpnActive && snapshot.loopbackDns -> getString(R.string.route_tunnel_ok)
+            snapshot.vpnActive -> getString(
+                R.string.route_tunnel_wrong,
+                snapshot.dnsText(),
+                store.port
+            )
+            else -> getString(R.string.route_tunnel_no_vpn, store.port)
         }
     }
 
@@ -299,6 +452,7 @@ class MainActivity : AppCompatActivity() {
         tunnelSteps = findViewById(R.id.tunnelSteps)
         tunnelConfig = findViewById(R.id.tunnelConfig)
         tunnelTestResult = findViewById(R.id.tunnelTestResult)
+        tunnelRouteInfo = findViewById(R.id.tunnelRouteInfo)
 
         val clients = tunnelClients()
         clientChips.isSingleSelection = true
@@ -496,7 +650,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun reloadIfRunning() {
-        if (FilterService.running) FilterService.reload(this)
+        Protection.reload(this)
     }
 
     private fun rebuildListRows() {
@@ -548,8 +702,8 @@ class MainActivity : AppCompatActivity() {
         }
         settingsInfo.text = getString(
             R.string.settings_info,
-            FilterService.ruleCount,
-            FilterService.sourceCount
+            Protection.ruleCount(this),
+            Protection.sourceCount(this)
         )
         val version = packageVersion()
         aboutText.text = getString(R.string.about_text, version)
@@ -609,7 +763,7 @@ class MainActivity : AppCompatActivity() {
         if (busy) return
         val urls = store.userLists.toList()
         if (urls.isEmpty()) {
-            if (FilterService.running) FilterService.reload(this)
+            Protection.reload(this)
             toast(getString(R.string.reloading))
             return
         }
@@ -630,7 +784,7 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 busy = false
                 rebuildListRows()
-                if (FilterService.running) FilterService.reload(this)
+                Protection.reload(this)
                 toast(getString(R.string.refresh_done, ok, failed))
             }
         }.start()
@@ -638,12 +792,16 @@ class MainActivity : AppCompatActivity() {
 
     private fun copyDiagnostics() {
         val text = buildString {
+            val snapshot = VpnStatus.snapshot(this)
             appendLine("Süzgeç ${packageVersion()}")
-            appendLine("durum: ${if (FilterService.running) "çalışıyor" else "durdu"}")
+            appendLine("mod: ${store.mode}")
+            appendLine("durum: ${if (Protection.active(this)) "çalışıyor" else "durdu"}")
+            appendLine("vpn servisi: ${SuzgecVpnService.active} · yerel dns: ${FilterService.running}")
+            appendLine("vpn algılandı: ${snapshot.vpnActive} · dns: ${snapshot.dnsText()}")
             appendLine("port: ${if (FilterService.running) FilterService.boundPort else store.port}")
-            appendLine("kural: ${FilterService.ruleCount} · kaynak: ${FilterService.sourceCount}")
-            appendLine("yükleniyor: ${FilterService.loading}")
-            appendLine("son hata: ${FilterService.lastError ?: "-"}")
+            appendLine("kural: ${Protection.ruleCount(this)} · kaynak: ${Protection.sourceCount(this)}")
+            appendLine("yükleniyor: ${Protection.loading(this)}")
+            appendLine("son hata: ${Protection.lastError(this) ?: "-"}")
             appendLine("upstream: ${store.upstreamKey}${if (store.upstreamKey == "custom") " ${store.customDoh}" else ""}")
             appendLine("liste sayısı: ${store.userLists.size}")
             appendLine("bugün: ${Stats.todayQueryCount()} sorgu · ${Stats.todayBlockedCount()} engellendi")
@@ -664,11 +822,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun runTest(target: TextView) {
+        val modeVpn = store.mode == Store.MODE_VPN
         target.text = getString(R.string.test_running)
         val port = if (FilterService.running) FilterService.boundPort else store.port
         Thread {
-            val blocked = resolveViaLocal("doubleclick.net", port)
-            val passed = resolveViaLocal("example.com", port)
+            val blocked = if (modeVpn) {
+                SuzgecVpnService.testQuery("doubleclick.net")
+            } else {
+                resolveViaLocal("doubleclick.net", port)
+            }
+            val passed = if (modeVpn) {
+                SuzgecVpnService.testQuery("example.com")
+            } else {
+                resolveViaLocal("example.com", port)
+            }
             val message = buildString {
                 append(getString(R.string.test_blocked_line, "doubleclick.net", blocked ?: getString(R.string.test_fail)))
                 append('\n')
@@ -678,14 +845,14 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
-    private fun resolveViaLocal(name: String, port: Int): String? {
+    private fun resolveViaLocal(name: String, port: Int, host: String = "127.0.0.1"): String? {
         var socket: DatagramSocket? = null
         return try {
             val query = DnsWire.buildQuery(name)
             val s = DatagramSocket()
             socket = s
             s.soTimeout = 3500
-            s.send(DatagramPacket(query, query.size, InetAddress.getByName("127.0.0.1"), port))
+            s.send(DatagramPacket(query, query.size, InetAddress.getByName(host), port))
             val buffer = ByteArray(4096)
             val packet = DatagramPacket(buffer, buffer.size)
             s.receive(packet)

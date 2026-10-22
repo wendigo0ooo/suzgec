@@ -32,6 +32,11 @@ class Store(context: Context) {
         get() = prefs.getBoolean(KEY_BUNDLED, true)
         set(value) = prefs.edit().putBoolean(KEY_BUNDLED, value).apply()
 
+    var mode: String
+        get() = prefs.getString(KEY_MODE, null)
+            ?: if (prefs.getBoolean(KEY_WANTED, false)) MODE_TUNNEL else MODE_VPN
+        set(value) = prefs.edit().putString(KEY_MODE, value).apply()
+
     var lastClient: String
         get() = prefs.getString(KEY_LAST_CLIENT, "v2rayng") ?: "v2rayng"
         set(value) = prefs.edit().putString(KEY_LAST_CLIENT, value).apply()
@@ -48,6 +53,9 @@ class Store(context: Context) {
         const val KEY_CUSTOM_DOH = "custom_doh"
         const val KEY_BLOCK_MODE = "block_mode"
         const val KEY_WANTED = "service_wanted"
+        const val KEY_MODE = "protection_mode"
+        const val MODE_VPN = "vpn"
+        const val MODE_TUNNEL = "tunnel"
         const val KEY_BUNDLED = "use_bundled"
         const val KEY_LAST_CLIENT = "last_client"
         const val KEY_USER_LISTS = "user_lists"

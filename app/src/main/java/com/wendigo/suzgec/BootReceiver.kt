@@ -13,8 +13,6 @@ class BootReceiver : BroadcastReceiver() {
         ) {
             return
         }
-        if (Store(context).serviceWanted) {
-            FilterService.start(context)
-        }
+        Protection.startAtBoot(context)
     }
 }
