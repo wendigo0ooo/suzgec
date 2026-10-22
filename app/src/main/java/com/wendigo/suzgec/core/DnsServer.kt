@@ -40,6 +40,27 @@ class DnsServer(
 
     fun start() {
         if (running.get()) return
+        var failure: Exception? = null
+        for (attempt in 0 until BIND_ATTEMPTS) {
+            try {
+                bind()
+                return
+            } catch (e: Exception) {
+                failure = e
+                if (attempt < BIND_ATTEMPTS - 1) {
+                    try {
+                        Thread.sleep(BIND_RETRY_MS)
+                    } catch (interrupted: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                        break
+                    }
+                }
+            }
+        }
+        throw failure ?: IllegalStateException("port bind failed")
+    }
+
+    private fun bind() {
         val address = InetAddress.getByName("127.0.0.1")
         val udp = DatagramSocket(null)
         try {
@@ -78,6 +99,11 @@ class DnsServer(
             it.isDaemon = true
             it.start()
         }
+    }
+
+    private companion object {
+        const val BIND_ATTEMPTS = 4
+        const val BIND_RETRY_MS = 900L
     }
 
     fun stop() {
