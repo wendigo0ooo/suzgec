@@ -18,7 +18,7 @@ class IpPacketTest {
         val udp = parsed!!
         assertEquals(4, udp.version)
         assertArrayEquals(byteArrayOf(10, 0, 0, 2), udp.source)
-        assertArrayEquals(byteArrayOf(10, 111, 222, 1), udp.destination)
+        assertArrayEquals(byteArrayOf(10, 111.toByte(), 222.toByte(), 1), udp.destination)
         assertEquals(40000, udp.sourcePort)
         assertEquals(53, udp.destinationPort)
         assertArrayEquals(dnsPayload, udp.payload)
