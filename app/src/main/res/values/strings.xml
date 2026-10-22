@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Süzgeç</string>
+
+    <string name="nav_status">Durum</string>
+    <string name="nav_tunnel">Tünel</string>
+    <string name="nav_settings">Ayarlar</string>
+
+    <string name="title">Süzgeç</string>
+    <string name="subtitle">Reklamları DNS seviyesinde süzer. VPN kullanmaz, tünelinle çakışmaz.</string>
+
+    <string name="status_running">Çalışıyor</string>
+    <string name="status_stopped">Durduruldu</string>
+    <string name="status_detail_running">127.0.0.1:%1$d · %2$d kural yüklü</string>
+    <string name="status_detail_stopped">Başlatmak için aşağıdaki düğmeye dokun (port %1$d)</string>
+    <string name="action_start">Başlat</string>
+    <string name="action_stop">Durdur</string>
+    <string name="action_cancel">Vazgeç</string>
+    <string name="action_remove">Kaldır</string>
+    <string name="action_save">Kaydet</string>
+
+    <string name="stats_queries">sorgu</string>
+    <string name="stats_blocked">engellendi</string>
+    <string name="stats_today">Bugün: %1$d sorgu · %2$d engellendi</string>
+    <string name="stats_rules">%1$d kural · %2$d liste kaynağı</string>
+    <string name="stats_port">Dinlenen adres: 127.0.0.1:%1$d</string>
+    <string name="recent_title">Son engellenenler</string>
+    <string name="recent_empty">Henüz engellenen istek yok.</string>
+    <string name="btn_test">Bağlantıyı test et</string>
+    <string name="btn_reset">Bugünü sıfırla</string>
+
+    <string name="test_need_start">Önce Süzgeç uygulamasını başlat.</string>
+    <string name="test_running">Test ediliyor…</string>
+    <string name="test_blocked_line">%1$s → %2$s</string>
+    <string name="test_pass_line">%1$s → %2$s</string>
+    <string name="test_fail">yanıt yok</string>
+    <string name="limits_note">Not: DNS seviyesinde filtreleme reklamların çoğunu engeller. Ancak bir uygulama kendi DoH/DoT sunucusunu kullanıyorsa, reklam sabit bir IP üzerinden geliyorsa veya reklam normal içerikle aynı alan adından servis ediliyorsa süzülemez.</string>
+
+    <string name="tunnel_title">Tünel ile birlikte kullan</string>
+    <string name="tunnel_intro">Android aynı anda yalnızca bir VPN uygulamasına izin verir. Bu yüzden Süzgeç VPN açmaz; 127.0.0.1 üzerinde yerel bir DNS filtresi çalıştırır. Tünel uygulamanın DNS ayarını bu adrese yönlendirdiğinde reklamlar tünelin içinden geçerken süzülür.</string>
+    <string name="tunnel_client_label">Tünel uygulaman</string>
+    <string name="tunnel_steps_label">Adımlar</string>
+    <string name="tunnel_config_label">Yapılandırma</string>
+    <string name="tunnel_v2rayng_steps">1) v2rayNG → Ayarlar → DNS bölümünü aç.\n2) DNS sunucusu alanına %1$s yaz.\n3) Tüneli yeniden başlat.\n\nMenü adları sürüme göre değişebilir. Alanı bulamazsan özel yapılandırmaya aşağıdaki JSON bloğunu ekle.</string>
+    <string name="tunnel_hiddify_steps">1) Hiddify → Ayarlar → DNS.\n2) Uzak DNS ve doğrudan DNS alanlarına %1$s yaz.\n3) Profili yeniden bağla.</string>
+    <string name="tunnel_nekobox_steps">1) NekoBox → Ayarlar → DNS.\n2) DNS sunucusu alanına %1$s yaz.\n3) Tüneli yeniden başlat.</string>
+    <string name="tunnel_singbox_steps">1) sing-box yapılandırmana aşağıdaki dns bloğunu ekle.\n2) Adres değeri %1$s olmalı.\n3) Servisi yeniden başlat.</string>
+    <string name="tunnel_wireguard_steps">WireGuard uygulamasının DNS alanı port kabul etmez, bu yüzden 127.0.0.1:5353 doğrudan çalışmaz.\n\nSeçenekler:\n• Tünel sunucunda Pi-hole veya AdGuard Home çalıştır.\n• Port destekleyen bir WireGuard istemcisi kullan.\n• Süzgeç uygulamasını yalnız tünel kapalıyken kullan.</string>
+    <string name="btn_copy_config">Yapılandırmayı kopyala</string>
+    <string name="btn_copy_dns">DNS adresini kopyala</string>
+    <string name="copy_label_config">Süzgeç yapılandırması</string>
+    <string name="copy_label_dns">Süzgeç DNS adresi</string>
+    <string name="copied">Panoya kopyalandı</string>
+    <string name="tunnel_note">Tünel kapalıyken cihaz geneli süzme için Android ayarlarındaki Özel DNS alanına dns.adguard-dns.com yazabilirsin. Tünel açıkken tünelin DNS ayarı geçerlidir.</string>
+
+    <string name="settings_title">Ayarlar</string>
+    <string name="settings_connection">Bağlantı</string>
+    <string name="settings_port_label">Yerel DNS portu (1024–65535)</string>
+    <string name="settings_upstream">DNS sağlayıcı (upstream)</string>
+    <string name="rb_adguard">AdGuard DNS (alan adı)</string>
+    <string name="rb_quad9">Quad9</string>
+    <string name="rb_cloudflare">Cloudflare (1.1.1.1 · önerilen)</string>
+    <string name="rb_google">Google</string>
+    <string name="rb_custom">Özel DoH</string>
+    <string name="hint_custom_doh">https://ornek.com/dns-query</string>
+    <string name="settings_block_mode">Engelleme yanıtı</string>
+    <string name="rb_nxdomain">NXDOMAIN (önerilen)</string>
+    <string name="rb_zero">0.0.0.0</string>
+    <string name="settings_lists">Filtre listeleri</string>
+    <string name="sw_bundled">Yerleşik liste (reklam ve izleyici)</string>
+    <string name="hint_list_url">https://… liste adresi</string>
+    <string name="btn_add_list">Liste ekle</string>
+    <string name="btn_reload">Listeleri yeniden yükle</string>
+    <string name="lists_empty">Henüz harici liste eklenmedi.</string>
+    <string name="list_line_count">%1$d satır</string>
+    <string name="settings_info">%1$d kural · %2$d liste kaynağı</string>
+    <string name="about_title">Hakkında</string>
+    <string name="about_text">Süzgeç %1$s\nReklamları DNS seviyesinde engelleyen, VPN kullanmayan yerel filtre. Veriler cihazında kalır; hiçbir istatistik gönderilmez. Harici listeler yalnızca sen eklediğinde indirilir.</string>
+
+    <string name="notif_channel_name">Süzgeç durumu</string>
+    <string name="notif_channel_desc">Filtre çalışırken gösterilen sessiz bildirim</string>
+    <string name="notif_title_running">Süzgeç çalışıyor</string>
+    <string name="notif_title_error">Süzgeç durdu</string>
+    <string name="notif_text_running">Port %1$d · %2$d kural · bugün %3$d engellendi</string>
+    <string name="notif_text_idle">Hazır</string>
+
+    <string name="err_https_required">Adres https:// ile başlamalı</string>
+    <string name="err_port">Geçerli bir port gir (1024–65535)</string>
+    <string name="err_list_exists">Bu liste zaten ekli</string>
+    <string name="err_generic">İşlem başarısız</string>
+    <string name="list_downloading">Liste indiriliyor…</string>
+    <string name="list_added">Liste eklendi</string>
+    <string name="saved">Kaydedildi</string>
+    <string name="reloading">Listeler yeniden yükleniyor…</string>
+    <string name="remove_list_title">Listeyi kaldır</string>
+</resources>
