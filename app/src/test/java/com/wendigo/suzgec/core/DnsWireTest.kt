@@ -45,6 +45,14 @@ class DnsWireTest {
     }
 
     @Test
+    fun recursionDesiredBitDoesNotPolluteRcode() {
+        val query = DnsWire.buildQuery("example.com")
+        val response = DnsWire.buildError(query, query.size, 0)
+        assertEquals(0, DnsWire.rcode(response))
+        assertTrue((DnsWire.readU16(response, 2) and 0x0100) != 0)
+    }
+
+    @Test
     fun rejectsTruncatedPacket() {
         val query = DnsWire.buildQuery("example.com")
         val sliced = query.copyOf(14)

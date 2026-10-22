@@ -81,8 +81,8 @@ object DnsWire {
                 out[0] = query[0]
                 out[1] = query[1]
             }
-            val rd = if (len >= 4) (query[2].toInt() and 0x01) else 0
-            var flags = 0x8000 or 0x0080 or rd
+            val qFlags = if (len >= 4) readU16(query, 2) else 0
+            var flags = 0x8000 or 0x0080 or (qFlags and 0x7900)
             flags = flags or (rcode and 0x0F)
             setU16(out, 2, flags)
             setU16(out, 4, 0)
@@ -93,9 +93,8 @@ object DnsWire {
         }
         val out = ByteArray(qEnd)
         System.arraycopy(query, 0, out, 0, qEnd)
-        val rd = query[2].toInt() and 0x01
-        val opcode = query[2].toInt() and 0x78
-        var flags = 0x8000 or 0x0400 or 0x0080 or rd or opcode
+        val qFlags = readU16(query, 2)
+        var flags = 0x8000 or 0x0400 or 0x0080 or (qFlags and 0x7900)
         flags = flags or (rcode and 0x0F)
         setU16(out, 2, flags)
         setU16(out, 4, 1)
@@ -111,8 +110,8 @@ object DnsWire {
         val answerLen = if (type == TYPE_A) 16 else 0
         val out = ByteArray(qEnd + answerLen)
         System.arraycopy(query, 0, out, 0, qEnd)
-        val rd = query[2].toInt() and 0x01
-        var flags = 0x8000 or 0x0400 or 0x0080 or rd
+        val qFlags = readU16(query, 2)
+        var flags = 0x8000 or 0x0400 or 0x0080 or (qFlags and 0x7900)
         setU16(out, 2, flags)
         setU16(out, 4, 1)
         setU16(out, 6, if (answerLen > 0) 1 else 0)
