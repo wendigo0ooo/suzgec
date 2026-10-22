@@ -219,6 +219,7 @@ object DnsWire {
             out[p++] = 0x0C
             setU16(out, p, TYPE_A); p += 2
             setU16(out, p, 1); p += 2
+            setU16(out, p, 0); p += 2
             setU16(out, p, 60); p += 2
             setU16(out, p, 4); p += 2
             System.arraycopy(ipv4, 0, out, p, 4)
