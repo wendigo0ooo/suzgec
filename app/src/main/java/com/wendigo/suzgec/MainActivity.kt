@@ -79,8 +79,11 @@ class MainActivity : AppCompatActivity() {
     private var busy = false
     private var syncingNav = false
     private var syncingMode = false
+    private var consentPending = false
 
     private lateinit var recommendedChips: ChipGroup
+
+    private val startRunner = Runnable { startFiltering() }
 
     private val handler = Handler(Looper.getMainLooper())
     private val refresher = object : Runnable {
@@ -93,23 +96,28 @@ class MainActivity : AppCompatActivity() {
     private val notifPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (granted) {
-            beginStart()
-        } else {
-            toast(getString(R.string.notif_permission_needed))
-        }
+        if (!granted) toast(getString(R.string.notif_permission_needed))
+        handler.post { beginStart() }
     }
 
     private val vpnConsent = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            if (!Protection.start(this)) {
-                toast(Protection.lastError(this) ?: getString(R.string.vpn_establish_failed))
+        consentPending = false
+        val granted = result.resultCode == RESULT_OK
+        CrashLog.append(this, "VPN-CONSENT", "kod=${result.resultCode}")
+        if (granted || vpnPrepared()) {
+            if (store.mode == Store.MODE_VPN) {
+                if (!Protection.active(this) && !Protection.start(this)) {
+                    toast(Protection.lastError(this) ?: getString(R.string.vpn_establish_failed))
+                }
+            } else {
+                beginStart()
             }
         } else {
-            Store(this).serviceWanted = false
-            toast(getString(R.string.vpn_permission_needed))
+            store.serviceWanted = false
+            updateStatus()
+            showVpnDenied()
         }
     }
 
@@ -153,7 +161,7 @@ class MainActivity : AppCompatActivity() {
             if (store.mode == Store.MODE_VPN) {
                 if (!SuzgecVpnService.active &&
                     !VpnStatus.otherVpnActive(this) &&
-                    VpnService.prepare(this) == null
+                    vpnPrepared()
                 ) {
                     SuzgecVpnService.start(this)
                 }
@@ -171,6 +179,14 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         handler.post(refresher)
+        if (consentPending && vpnPrepared()) {
+            consentPending = false
+            if (store.mode == Store.MODE_VPN && !Protection.active(this)) {
+                if (!Protection.start(this)) {
+                    toast(Protection.lastError(this) ?: getString(R.string.vpn_establish_failed))
+                }
+            }
+        }
     }
 
     override fun onPause() {
@@ -223,7 +239,8 @@ class MainActivity : AppCompatActivity() {
             updateStatus()
             if (store.serviceWanted) {
                 Protection.stopForSwitch(this)
-                handler.postDelayed({ startFiltering() }, 400)
+                handler.removeCallbacks(startRunner)
+                handler.postDelayed(startRunner, 400)
             }
         }
         statQueries = findViewById(R.id.statQueries)
@@ -289,23 +306,52 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun launchVpnConsent() {
+        if (consentPending) return
         val intent = try {
             VpnService.prepare(this)
         } catch (e: Exception) {
             CrashLog.append(this, "VPN-PREPARE", e.toString())
-            null
+            toast(getString(R.string.vpn_permission_needed))
+            return
         }
         if (intent == null) {
             if (!Protection.start(this)) {
                 toast(Protection.lastError(this) ?: getString(R.string.vpn_establish_failed))
             }
-        } else {
+            return
+        }
+        consentPending = true
+        store.serviceWanted = true
+        try {
+            vpnConsent.launch(intent)
+        } catch (e: Exception) {
+            CrashLog.append(this, "VPN-LAUNCH", e.toString())
             try {
-                vpnConsent.launch(intent)
-            } catch (e: Exception) {
+                startActivity(intent)
+            } catch (e2: Exception) {
+                consentPending = false
+                store.serviceWanted = false
+                CrashLog.append(this, "VPN-LAUNCH", e2.toString())
                 toast(getString(R.string.vpn_permission_needed))
             }
         }
+    }
+
+    private fun showVpnDenied() {
+        if (isFinishing || isDestroyed) return
+        AlertDialog.Builder(this)
+            .setTitle(R.string.vpn_permission_title)
+            .setMessage(R.string.vpn_permission_hint)
+            .setPositiveButton(R.string.vpn_permission_retry) { _, _ -> launchVpnConsent() }
+            .setNegativeButton(R.string.action_cancel, null)
+            .show()
+    }
+
+    private fun vpnPrepared(): Boolean = try {
+        VpnService.prepare(this) == null
+    } catch (e: Exception) {
+        CrashLog.append(this, "VPN-PREPARE", e.toString())
+        false
     }
 
     private fun updateModeDesc() {

@@ -93,6 +93,9 @@
     <string name="notif_vpn_text">VPN · %1$d kural · bugün %2$d engellendi</string>
     <string name="vpn_permission_needed">VPN izni verilmedi; koruma başlatılamadı.</string>
     <string name="vpn_establish_failed">VPN tüneli kurulamadı. Başka bir VPN açık olabilir; kapatıp yeniden dene.</string>
+    <string name="vpn_permission_title">VPN izni alınamadı</string>
+    <string name="vpn_permission_hint">Sistem VPN onay penceresi tamamlanmadı. Başka bir uygulamanın Her zaman açık VPN ayarı veya cihaz kısıtlaması engelliyor olabilir. Ayarı kapatıp yeniden deneyin.</string>
+    <string name="vpn_permission_retry">Tekrar dene</string>
     <string name="vpn_revoked_fallback">Başka bir VPN açıldı; Süzgeç yerel DNS moduna geçti.</string>
     <string name="vpn_switch_warning">Şu an başka bir VPN açık. Süzgeç\'in kendi VPN\'ini başlatınca o VPN kapanacak. Devam edilsin mi?</string>
     <string name="vpn_switch_positive">Devam et</string>

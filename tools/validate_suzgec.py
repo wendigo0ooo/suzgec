@@ -297,6 +297,17 @@ def check_sources():
     for rel in required:
         if not os.path.isfile(os.path.join(base, rel)):
             err("Kaynak dosya yok: %s" % rel)
+    activity = os.path.join(base, "MainActivity.kt")
+    if os.path.isfile(activity):
+        text = open(activity, encoding="utf-8").read()
+        for marker in (
+            "VpnService.prepare",
+            "ActivityResultContracts.StartActivityForResult",
+            "consentPending",
+            "VPN-CONSENT",
+        ):
+            if marker not in text:
+                err("MainActivity.kt VPN izin akışı eksik: %s" % marker)
     tests = os.path.join(ROOT, "app", "src", "test", "java", "com", "wendigo", "suzgec", "core")
     for rel in ("DnsWireTest.kt", "RuleSetTest.kt", "DnsEngineTest.kt", "IpPacketTest.kt"):
         if not os.path.isfile(os.path.join(tests, rel)):

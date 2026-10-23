@@ -51,9 +51,15 @@ object Protection {
     }
 
     fun startAtBoot(context: Context) {
-        if (!Store(context).serviceWanted) return
-        if (Store(context).mode == Store.MODE_VPN) {
-            SuzgecVpnService.start(context)
+        val store = Store(context)
+        if (!store.serviceWanted) return
+        if (store.mode == Store.MODE_VPN) {
+            val prepared = try {
+                android.net.VpnService.prepare(context) == null
+            } catch (_: Exception) {
+                false
+            }
+            if (prepared) SuzgecVpnService.start(context)
         } else {
             FilterService.start(context)
         }
